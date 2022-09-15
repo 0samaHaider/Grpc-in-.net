@@ -1,34 +1,98 @@
-# ASP.NET
-# Build and test ASP.NET projects.
-# Add steps that publish symbols, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
-
 trigger:
 - master
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: ubuntu-latest
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  projectName: 'GRPC .Net'
+  websiteName: 'GRPC .Net'
+  appPoolName: 'WeatherService'
 
-steps:
-- task: NuGetToolInstaller@1
+stages:
+- stage: 'Build'
+  displayName: 'Build'
+  jobs:
+     - job: 
+       steps:  
+        - task: DotNetCoreCLI@2
+          displayName: 'dotnet restore'
+          inputs:
+            command: 'restore'
+            projects: '*.sln'
 
-- task: NuGetCommand@2
-  inputs:
-    restoreSolution: '$(solution)'
+        - task: DotNetCoreCLI@2
+          displayName: Build
+          inputs:
+            command: 'build'
+            projects: '*.sln'
+            arguments: --configuration Release
 
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+        - task: DotNetCoreCLI@2
+          displayName: Test
+          inputs:
+            command: test
+            projects: '*.sln'
+            arguments: '--configuration $(BuildConfiguration)'
+       
+        - task: DotNetCoreCLI@2
+          displayName: 'Publish the project - $(buildConfiguration)'
+          inputs:
+            command: 'publish'
+            projects: '**/*.csproj'
+            publishWebProjects: false
+            arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
+            zipAfterPublish: true
 
-- task: VSTest@2
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+        - publish: '$(Build.ArtifactStagingDirectory)'
+          artifact: drop
+
+- stage: 'Dev'
+  displayName: 'Dev'
+  dependsOn: 'Build'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  jobs:
+   - deployment: Dev
+     displayName: Dev
+     environment: 
+       name: 'Dev'    
+       resourceType: VirtualMachine
+     variables:
+     - name: websitePhysicalPath
+       value: '%SystemDrive%\inetpub\wwwroot\$(websiteName)'
+
+     strategy:
+      runOnce:
+        deploy:
+          steps: 
+          - task: IISWebAppManagementOnMachineGroup@0
+            inputs:            
+              IISDeploymentType: 'IISWebsite'
+              ActionIISWebsite: 'CreateOrUpdateWebsite'
+              WebsiteName: '$(websiteName)'
+              WebsitePhysicalPath: '$(websitePhysicalPath)'
+              WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+              CreateOrUpdateAppPoolForWebsite: true
+              AppPoolNameForWebsite: '$(appPoolName)'
+              DotNetVersionForWebsite: 'No Managed Code'
+              PipeLineModeForWebsite: 'Integrated'
+              AppPoolIdentityForWebsite: 'ApplicationPoolIdentity'
+              AddBinding: true
+              Bindings: |
+                  {
+                      bindings:[
+                          {
+                              "protocol":"http",
+                              "ipAddress":"",
+                              "hostname":"",
+                              "port":"80",
+                              "sslThumbprint":"",
+                              "sniFlag":false
+                          }
+                      ]
+                  }
+          - task: IISWebAppDeploymentOnMachineGroup@0
+            inputs:
+              WebSiteName: '$(websiteName)'
+              Package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/$(projectName).zip'
