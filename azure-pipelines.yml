@@ -95,4 +95,4 @@ stages:
           - task: IISWebAppDeploymentOnMachineGroup@0
             inputs:
               WebSiteName: '$(websiteName)'
-              Package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/$(projectName).zip'
+              Package: '$(Build.ArtifactStagingDirectory)/drop/$(projectName).zip'
