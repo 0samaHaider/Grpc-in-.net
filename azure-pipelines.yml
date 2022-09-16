@@ -96,3 +96,5 @@ stages:
             inputs:
               WebSiteName: '$(websiteName)'
               Package: '$(Build.ArtifactStagingDirectory)/drop/$(projectName).zip'
+
+          - task: PublishBuildArtifacts@1
