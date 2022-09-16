@@ -94,6 +94,4 @@ stages:
           - task: IISWebAppDeploymentOnMachineGroup@0
             inputs:
               WebSiteName: '$(websiteName)'
-              Package: '$(Build.ArtifactStagingDirectory)/drop/$(projectName).zip'
-
-          - task: PublishBuildArtifacts@1
+              Package: '$(System.DefaultWorkingDirectory)\**\$(projectName).zip'
