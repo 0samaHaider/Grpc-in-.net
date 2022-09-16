@@ -46,7 +46,6 @@ stages:
             zipAfterPublish: true
 
         - publish: '$(Build.ArtifactStagingDirectory)'
-          artifact: drop
 
 - stage: 'Dev'
   displayName: 'Dev'
@@ -97,4 +96,4 @@ stages:
               WebSiteName: '$(websiteName)'
               Package: '$(Build.ArtifactStagingDirectory)/drop/$(projectName).zip'
 
-          - task: PublishBuildArtifacts@0
+          - task: PublishBuildArtifacts@1
