@@ -95,3 +95,4 @@ stages:
             inputs:
               WebSiteName: '$(websiteName)'
               Package: '$(System.DefaultWorkingDirectory)\**\$(projectName).zip'
+          - task: PublishBuildArtifacts@1
